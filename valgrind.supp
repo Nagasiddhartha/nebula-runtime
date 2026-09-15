@@ -136,3 +136,10 @@
    rt_sigprocmask(oldset)
    fun:swapcontext
 }
+{
+   ucontext-clock-gettime-tp
+   Memcheck:Param
+   clock_gettime(tp)
+   ...
+   fun:scheduler
+}
