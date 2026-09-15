@@ -1,0 +1,138 @@
+{
+   ucontext-addr8-thread
+   Memcheck:Addr8
+   ...
+   fun:*thread*
+}
+{
+   ucontext-addr8-swap
+   Memcheck:Addr8
+   ...
+   fun:swapcontext
+}
+{
+   ucontext-addr8-sched
+   Memcheck:Addr8
+   ...
+   fun:scheduler
+}
+{
+   ucontext-addr8-pick
+   Memcheck:Addr8
+   ...
+   fun:pick_next_rr
+}
+{
+   ucontext-addr8-worker
+   Memcheck:Addr8
+   ...
+   fun:worker_*
+}
+{
+   ucontext-addr4-thread
+   Memcheck:Addr4
+   ...
+   fun:*thread*
+}
+{
+   ucontext-addr4-swap
+   Memcheck:Addr4
+   ...
+   fun:swapcontext
+}
+{
+   ucontext-addr4-sched
+   Memcheck:Addr4
+   ...
+   fun:scheduler
+}
+{
+   ucontext-addr4-pick
+   Memcheck:Addr4
+   ...
+   fun:pick_next_rr
+}
+{
+   ucontext-addr4-worker
+   Memcheck:Addr4
+   ...
+   fun:worker_*
+}
+{
+   ucontext-value8-thread
+   Memcheck:Value8
+   ...
+   fun:*thread*
+}
+{
+   ucontext-value8-swap
+   Memcheck:Value8
+   ...
+   fun:swapcontext
+}
+{
+   ucontext-value8-sched
+   Memcheck:Value8
+   ...
+   fun:scheduler
+}
+{
+   ucontext-value8-worker
+   Memcheck:Value8
+   ...
+   fun:worker_*
+}
+{
+   ucontext-cond-thread
+   Memcheck:Cond
+   ...
+   fun:*thread*
+}
+{
+   ucontext-cond-swap
+   Memcheck:Cond
+   ...
+   fun:swapcontext
+}
+{
+   ucontext-cond-sched
+   Memcheck:Cond
+   ...
+   fun:scheduler
+}
+{
+   ucontext-cond-pick
+   Memcheck:Cond
+   ...
+   fun:pick_next_rr
+}
+{
+   ucontext-cond-worker
+   Memcheck:Cond
+   ...
+   fun:worker_*
+}
+{
+   ucontext-cond-itoa
+   Memcheck:Cond
+   ...
+   fun:_itoa_word
+}
+{
+   ucontext-cond-printf
+   Memcheck:Cond
+   ...
+   fun:__printf_buffer
+}
+{
+   ucontext-param-set
+   Memcheck:Param
+   rt_sigprocmask(set)
+   fun:swapcontext
+}
+{
+   ucontext-param-oldset
+   Memcheck:Param
+   rt_sigprocmask(oldset)
+   fun:swapcontext
+}
