@@ -23,8 +23,11 @@ typedef struct nebula_thread {
     nebula_thread_state_t state;
     ucontext_t context;
     void *stack;
+    void *stack_region;
+    size_t stack_region_size;
     size_t stack_size;
     int priority;
+    int queue_level;
     int time_used;
     struct nebula_thread *join_target;
     struct nebula_thread *next;
@@ -34,6 +37,10 @@ typedef struct {
     int total_context_switches;
     int threads_created;
     int threads_terminated;
+    unsigned long long total_switch_ns;
+    unsigned long long min_switch_ns;
+    unsigned long long max_switch_ns;
+    int latency_samples;
 } nebula_sched_stats_t;
 
 void nebula_thread_init(void);

@@ -3,7 +3,7 @@
 #include <string.h>
 #include "nebula_alloc.h"
 #include "nebula_thread.h"
-
+#include "sched_internal.h"
 void worker_a(void *arg) {
     int id = *(int *)arg;
     for (int i = 0; i < 4; i++) {
@@ -134,9 +134,9 @@ int main(void) {
     int id5 = 5, id6 = 6;
     nebula_thread_t *t5 = nebula_thread_create(worker_a, &id5);
     nebula_thread_t *t6 = nebula_thread_create(worker_b, &id6);
-    t5->priority = 3;
-    t6->priority = 3;
-    printf("Both threads start at MLFQ queue 3 (highest)\n");
+    printf("Both threads start at MLFQ queue 0 (highest)\n");
+    printf("Threads demote after exhausting slice; boost every %d switches\n",
+           MLFQ_BOOST_INTERVAL);
     nebula_thread_yield();
     nebula_thread_join(t5);
     nebula_thread_join(t6);
