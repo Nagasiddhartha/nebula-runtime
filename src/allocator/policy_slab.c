@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include "allocator_internal.h"
 
 #define NUM_SLAB_CLASSES 6
@@ -10,14 +11,22 @@ typedef struct slab_obj {
     struct slab_obj *next;
 } slab_obj_t;
 
-typedef struct {
+typedef struct slab_class {
     size_t obj_size;
     slab_obj_t *free_list;
     int total_objects;
     int free_count;
 } slab_class_t;
 
+typedef struct slab_region {
+    char *start;
+    size_t size;
+    int class_idx;
+    struct slab_region *next;
+} slab_region_t;
+
 static slab_class_t slabs[NUM_SLAB_CLASSES];
+static slab_region_t *regions = NULL;
 static void *slab_pool = NULL;
 static size_t slab_pool_size = 0;
 static size_t slab_pool_used = 0;
@@ -26,6 +35,10 @@ void slab_init(void *pool, size_t pool_size) {
     slab_pool = pool;
     slab_pool_size = pool_size;
     slab_pool_used = 0;
+
+    slab_region_t *r = regions;
+    while (r) { slab_region_t *n = r->next; free(r); r = n; }
+    regions = NULL;
 
     size_t sizes[NUM_SLAB_CLASSES] = {32, 64, 128, 256, 512, 1024};
     for (int i = 0; i < NUM_SLAB_CLASSES; i++) {
@@ -36,7 +49,7 @@ void slab_init(void *pool, size_t pool_size) {
     }
 }
 
-static void create_slab(slab_class_t *sc) {
+static void create_slab(slab_class_t *sc, int class_idx) {
     size_t slab_size = sc->obj_size * SLAB_CAPACITY;
     if (slab_pool_used + slab_size > slab_pool_size) return;
 
@@ -50,6 +63,13 @@ static void create_slab(slab_class_t *sc) {
     }
     sc->total_objects += SLAB_CAPACITY;
     sc->free_count += SLAB_CAPACITY;
+
+    slab_region_t *r = (slab_region_t *)malloc(sizeof(slab_region_t));
+    r->start = region;
+    r->size = slab_size;
+    r->class_idx = class_idx;
+    r->next = regions;
+    regions = r;
 }
 
 static int find_class(size_t size) {
@@ -64,7 +84,7 @@ void *slab_allocate(size_t size) {
 
     int cls = find_class(size);
     if (cls == -1) {
-        size_t aligned = (size + 15) & ~15;
+        size_t aligned = (size + 15) & ~(size_t)15;
         if (slab_pool_used + aligned > slab_pool_size) return NULL;
         void *ptr = (char *)slab_pool + slab_pool_used;
         slab_pool_used += aligned;
@@ -73,7 +93,7 @@ void *slab_allocate(size_t size) {
 
     slab_class_t *sc = &slabs[cls];
     if (!sc->free_list) {
-        create_slab(sc);
+        create_slab(sc, cls);
         if (!sc->free_list) return NULL;
     }
 
@@ -86,18 +106,25 @@ void *slab_allocate(size_t size) {
 void slab_deallocate(void *ptr) {
     if (!ptr || !slab_pool) return;
 
-    if ((uintptr_t)ptr < (uintptr_t)slab_pool ||
-        (uintptr_t)ptr >= (uintptr_t)slab_pool + slab_pool_size) return;
-
-    for (int i = 0; i < NUM_SLAB_CLASSES; i++) {
-        size_t obj_size = slabs[i].obj_size;
-        uintptr_t offset = (uintptr_t)ptr - (uintptr_t)slab_pool;
-        if (offset % obj_size == 0 && slabs[i].total_objects > 0) {
+    uintptr_t p = (uintptr_t)ptr;
+    for (slab_region_t *r = regions; r; r = r->next) {
+        uintptr_t start = (uintptr_t)r->start;
+        uintptr_t end   = start + r->size;
+        if (p >= start && p < end) {
+            slab_class_t *sc = &slabs[r->class_idx];
             slab_obj_t *obj = (slab_obj_t *)ptr;
-            obj->next = slabs[i].free_list;
-            slabs[i].free_list = obj;
-            slabs[i].free_count++;
+            obj->next = sc->free_list;
+            sc->free_list = obj;
+            sc->free_count++;
             return;
         }
     }
+}
+void slab_destroy(void) {
+    slab_region_t *r = regions;
+    while (r) { slab_region_t *n = r->next; free(r); r = n; }
+    regions = NULL;
+    slab_pool = NULL;
+    slab_pool_size = 0;
+    slab_pool_used = 0;
 }

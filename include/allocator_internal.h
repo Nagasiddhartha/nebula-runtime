@@ -23,6 +23,7 @@ void  buddy_deallocate(void *ptr);
 
 /* Slab allocator */
 void  slab_init(void *pool, size_t pool_size);
+void  slab_destroy(void);
 void *slab_allocate(size_t size);
 void  slab_deallocate(void *ptr);
 

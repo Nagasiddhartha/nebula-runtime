@@ -19,11 +19,10 @@ typedef struct {
 
 static allocator_state_t state = {0};
 
-/* Function pointers for linked-list policies */
 typedef block_header_t* (*find_block_fn)(size_t aligned_size);
 static find_block_fn current_find_fn = NULL;
+static int policy_locked = 0;
 
-/* Function pointers for buddy/slab policies */
 typedef void* (*alloc_fn)(size_t size);
 typedef void  (*dealloc_fn)(void *ptr);
 static alloc_fn   current_alloc_fn   = NULL;
@@ -48,20 +47,26 @@ void nebula_alloc_init(size_t size) {
     state.head->is_free = 1;
     state.head->next = NULL;
     state.head->prev = NULL;
+    policy_locked = 0;
     nebula_alloc_set_policy(NEBULA_FIRST_FIT);
     printf("[Nebula] Rented %zu bytes from OS\n", size);
 }
 
 void nebula_alloc_destroy(void) {
     if (state.pool_start != NULL) {
+        if (state.policy == NEBULA_SLAB) slab_destroy();
         munmap(state.pool_start, state.pool_size);
         state.pool_start = NULL;
         state.head = NULL;
+        policy_locked = 0;
         printf("[Nebula] Memory returned to OS\n");
     }
 }
-
 void nebula_alloc_set_policy(nebula_alloc_policy_t policy) {
+    if (policy_locked && policy != state.policy) {
+        fprintf(stderr, "[Nebula] cannot change policy after first allocation\n");
+        return;
+    }
     state.policy = policy;
     current_alloc_fn = NULL;
     current_dealloc_fn = NULL;
@@ -93,12 +98,11 @@ void nebula_alloc_set_policy(nebula_alloc_policy_t policy) {
 
 void *nebula_malloc(size_t size) {
     if (size == 0 || state.pool_start == NULL) return NULL;
+    policy_locked = 1;
 
-    /* Buddy / Slab have their own alloc logic */
     if (current_alloc_fn) return current_alloc_fn(size);
-
-    /* First-fit / Best-fit use linked-list approach */
     if (!current_find_fn) return NULL;
+
     size_t aligned_size = ALIGN(size);
     block_header_t *blk = current_find_fn(aligned_size);
     if (!blk) {
@@ -136,17 +140,19 @@ static void coalesce(block_header_t *blk) {
 void nebula_free(void *ptr) {
     if (!ptr || !state.pool_start) return;
 
-    /* Buddy / Slab have their own free logic */
     if (current_dealloc_fn) {
         current_dealloc_fn(ptr);
         return;
     }
 
-    /* First-fit / Best-fit linked-list free */
     block_header_t *blk = (block_header_t *)((char *)ptr - HEADER_SIZE);
     if ((uintptr_t)blk < (uintptr_t)state.pool_start ||
         (uintptr_t)blk >= (uintptr_t)state.pool_start + state.pool_size) {
-        printf("[Nebula] ERROR: invalid free!\n");
+        fprintf(stderr, "[Nebula] invalid free at %p\n", ptr);
+        return;
+    }
+    if (blk->is_free) {
+        fprintf(stderr, "[Nebula] double free detected at %p\n", ptr);
         return;
     }
     blk->is_free = 1;
